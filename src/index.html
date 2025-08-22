@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mahin Media Gallery</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0d0d0d;
+      color: #fff;
+      text-align: center;
+    }
+    header {
+      background: #111;
+      padding: 15px;
+      box-shadow: 0 0 15px #0ff;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: #0ff;
+      text-shadow: 0 0 10px #0ff;
+    }
+    .top-buttons {
+      margin-top: 10px;
+    }
+    .top-buttons button {
+      background: #111;
+      border: 2px solid #0ff;
+      color: #0ff;
+      padding: 10px 20px;
+      margin: 5px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .top-buttons button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 0 15px #0ff;
+    }
+    #status {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 15px;
+      padding: 20px;
+    }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 10px;
+      box-shadow: 0 0 10px #000;
+    }
+    .card video, .card img {
+      max-width: 100%;
+      border-radius: 10px;
+    }
+    .actions {
+      margin-top: 8px;
+    }
+    .actions button {
+      margin: 3px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .view { background: #28a745; color: #fff; }
+    .download { background: #007bff; color: #fff; }
+    .edit { background: #ff9800; color: #fff; }
+    .delete { background: #dc3545; color: #fff; }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal img, .modal video {
+      max-width: 90%;
+      max-height: 90%;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>The Owner Of This Site Is Mahin</h1>
+    <div class="top-buttons">
+      <button onclick="document.getElementById('fileInput').click()">Upload Media</button>
+      <button onclick="importFile()">Import File</button>
+      <button onclick="window.open('https://www.facebook.com/md.mahin.sharker.2024/','_blank')">Facebook Profile</button>
+      <button onclick="deleteAll()">Delete All</button>
+    </div>
+    <div id="status">Uploaded: 0 / 1000</div>
+  </header>
+
+  <input type="file" id="fileInput" accept="image/*,video/*" multiple style="display:none" onchange="uploadMedia(event)">
+
+  <div class="gallery" id="gallery"></div>
+
+  <div class="modal" id="modal" onclick="closeModal()">
+    <span style="position:absolute;top:20px;right:30px;color:#fff;font-size:2rem;cursor:pointer">&times;</span>
+    <div id="modalContent"></div>
+  </div>
+
+  <script>
+    const MAX_CAPACITY = 1000;
+    let mediaList = JSON.parse(localStorage.getItem('mediaList') || '[]');
+    renderGallery();
+
+    function updateStatus(){
+      document.getElementById('status').textContent = `Uploaded: ${mediaList.length} / ${MAX_CAPACITY}`;
+    }
+
+    function uploadMedia(event){
+      const files = Array.from(event.target.files);
+      for(let file of files){
+        if(mediaList.length >= MAX_CAPACITY){
+          alert("Storage full! 1000 media reached.");
+          break;
+        }
+        const reader = new FileReader();
+        reader.onload = e => {
+          const obj = {
+            type: file.type.startsWith('video') ? 'video' : 'image',
+            src: e.target.result,
+            name: file.name
+          };
+          mediaList.push(obj);
+          save();
+          renderGallery();
+        };
+        reader.readAsDataURL(file);
+      }
+      event.target.value = '';
+    }
+
+    function renderGallery(){
+      const gallery = document.getElementById('gallery');
+      gallery.innerHTML = '';
+      mediaList.forEach((m, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          ${m.type === 'video' ? `<video controls src="${m.src}"></video>` : `<img src="${m.src}" alt="">`}
+          <div class="actions">
+            <button class="view" onclick="viewMedia(${i})">View</button>
+            <button class="download" onclick="downloadMedia(${i})">Download</button>
+            <button class="edit" onclick="editMedia(${i})">Edit</button>
+            <button class="delete" onclick="deleteMedia(${i})">Delete</button>
+          </div>
+          <div contenteditable="false" id="name-${i}">${m.name}</div>
+        `;
+        gallery.appendChild(card);
+      });
+      updateStatus();
+    }
+
+    function viewMedia(i){
+      const modal = document.getElementById('modal');
+      const content = document.getElementById('modalContent');
+      content.innerHTML = mediaList[i].type === 'video' ? `<video src="${mediaList[i].src}" controls autoplay></video>` : `<img src="${mediaList[i].src}">`;
+      modal.style.display = 'flex';
+    }
+    function closeModal(){
+      document.getElementById('modal').style.display = 'none';
+    }
+    function downloadMedia(i){
+      const a = document.createElement('a');
+      a.href = mediaList[i].src;
+      a.download = mediaList[i].name;
+      a.click();
+    }
+    function editMedia(i){
+      const div = document.getElementById(`name-${i}`);
+      div.contentEditable = true;
+      div.focus();
+      div.onblur = () => {
+        mediaList[i].name = div.textContent;
+        save();
+      };
+    }
+    function deleteMedia(i){
+      mediaList.splice(i,1);
+      save();
+      renderGallery();
+    }
+    function deleteAll(){
+      if(confirm("Delete all media?")){
+        mediaList = [];
+        save();
+        renderGallery();
+      }
+    }
+    function save(){
+      localStorage.setItem('mediaList', JSON.stringify(mediaList));
+    }
+    function importFile(){
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json';
+      input.onchange = e => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = ev => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if(Array.isArray(data)){
+              mediaList = data.slice(0, MAX_CAPACITY);
+              save();
+              renderGallery();
+            }
+          } catch(err){ alert("Invalid file"); }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+
+    // Export shortcut
+    document.addEventListener('keydown', e => {
+      if(e.ctrlKey && e.key === 'e'){
+        const a = document.createElement('a');
+        const blob = new Blob([JSON.stringify(mediaList)], {type:'application/json'});
+        a.href = URL.createObjectURL(blob);
+        a.download = 'media-backup.json';
+        a.click();
+      }
+    });
+  </script>
+</body>
+</html>
